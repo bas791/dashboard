@@ -1,3 +1,4 @@
+import { LOCATIONS, locationForMember } from "@/config/team";
 import { startOfTodayInZone } from "@/lib/time";
 import type { ActivityEvent, Enquiry, EnquiryStatus } from "@/lib/types";
 import type { ServerConfig } from "../config";
@@ -218,6 +219,19 @@ export class GhlDataSource implements DataSource {
     }
   }
 
+  /**
+   * Location for an enquiry: the salesperson's home location from
+   * src/config/team.ts when known, otherwise the location this GHL
+   * sub-account is configured as (GHL_DASHBOARD_LOCATION_ID, defaulting to
+   * the first configured location).
+   */
+  private resolveLocationId(assignedName: string | null): string {
+    const fallback =
+      this.config.ghl.dashboardLocationId ?? LOCATIONS[0]?.id ?? "main";
+    if (!assignedName) return fallback;
+    return locationForMember(assignedName) ?? fallback;
+  }
+
   private toEnquiry(opp: GhlOpportunity): Enquiry {
     const receivedAt = opp.createdAt ?? opp.dateAdded ?? new Date().toISOString();
     let status: EnquiryStatus =
@@ -234,12 +248,17 @@ export class GhlDataSource implements DataSource {
         ? opp.lastStageChangeAt ?? opp.lastStatusChangeAt ?? receivedAt
         : null;
 
+    const assignedTo = opp.assignedTo
+      ? this.userMap.get(opp.assignedTo) ?? "Unknown"
+      : null;
+
     return {
       id: opp.id,
       contactName: opp.contact?.name ?? opp.name ?? "Unknown contact",
       phone: opp.contact?.phone ?? "—",
       source: opp.source || "GoHighLevel",
-      assignedTo: opp.assignedTo ? this.userMap.get(opp.assignedTo) ?? "Unknown" : null,
+      assignedTo,
+      locationId: this.resolveLocationId(assignedTo),
       status,
       receivedAt,
       respondedAt,
@@ -254,26 +273,26 @@ export class GhlDataSource implements DataSource {
     for (const enquiry of next) {
       const prev = prevById.get(enquiry.id);
       if (!prev) {
-        this.pushActivity("enquiry_received", `${enquiry.contactName} submitted an enquiry (${enquiry.source})`, enquiry.receivedAt);
+        this.pushActivity("enquiry_received", `${enquiry.contactName} submitted an enquiry (${enquiry.source})`, enquiry.receivedAt, enquiry.locationId);
         continue;
       }
       if (prev.status !== enquiry.status) {
         const who = enquiry.assignedTo ?? "Someone";
         switch (enquiry.status) {
           case "contacted":
-            this.pushActivity("contacted", `${who} contacted ${enquiry.contactName}`, now);
+            this.pushActivity("contacted", `${who} contacted ${enquiry.contactName}`, now, enquiry.locationId);
             break;
           case "qualified":
-            this.pushActivity("qualified", `${enquiry.contactName} marked Qualified`, now);
+            this.pushActivity("qualified", `${enquiry.contactName} marked Qualified`, now, enquiry.locationId);
             break;
           case "booked":
-            this.pushActivity("booked", `Appointment booked with ${enquiry.contactName}`, now);
+            this.pushActivity("booked", `Appointment booked with ${enquiry.contactName}`, now, enquiry.locationId);
             break;
           case "won":
-            this.pushActivity("won", `Deal won — ${enquiry.contactName}`, now);
+            this.pushActivity("won", `Deal won — ${enquiry.contactName}`, now, enquiry.locationId);
             break;
           case "lost":
-            this.pushActivity("lost", `Lead lost — ${enquiry.contactName}`, now);
+            this.pushActivity("lost", `Lead lost — ${enquiry.contactName}`, now, enquiry.locationId);
             break;
           default:
             break;
@@ -282,13 +301,19 @@ export class GhlDataSource implements DataSource {
     }
   }
 
-  private pushActivity(type: ActivityEvent["type"], message: string, at: string): void {
+  private pushActivity(
+    type: ActivityEvent["type"],
+    message: string,
+    at: string,
+    locationId: string
+  ): void {
     this.activityCounter += 1;
     this.activity.unshift({
       id: `ghl_act_${Date.now().toString(36)}_${this.activityCounter}`,
       at,
       type,
       message,
+      locationId,
     });
     this.activity = this.activity.slice(0, 100);
   }

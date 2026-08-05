@@ -16,6 +16,13 @@ export interface ServerConfig {
     apiVersion: string;
     pipelineId: string | null;
     pollIntervalMs: number;
+    /**
+     * Which dashboard location (src/config/team.ts id) this GHL sub-account's
+     * enquiries belong to. Defaults to the first configured location. When
+     * you add more sub-accounts later, each becomes its own GhlDataSource
+     * with its own location id.
+     */
+    dashboardLocationId: string | null;
   };
 }
 
@@ -55,6 +62,7 @@ export function loadServerConfig(): ServerConfig {
       apiVersion: process.env.GHL_API_VERSION ?? "2021-07-28",
       pipelineId: process.env.GHL_PIPELINE_ID || null,
       pollIntervalMs: intFromEnv("GHL_POLL_INTERVAL_MS", 15000),
+      dashboardLocationId: process.env.GHL_DASHBOARD_LOCATION_ID || null,
     },
   };
 }

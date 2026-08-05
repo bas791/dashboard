@@ -27,6 +27,47 @@ tracks daily stats and a salesperson leaderboard — all updating live.
   booked / sales / conversion %.
 - **TV mode** — dark theme, large type, high contrast. Press **F** (or
   double-click) for fullscreen; the cursor hides automatically.
+- **Multiple locations + NZ map** — every office gets its own board at
+  `/l/<location-id>`, and `/` is the NZ-wide view with a live map of all
+  locations (dots go orange/red as SLAs slip; click a dot to jump to that
+  office's board).
+
+## Adding your employees and locations
+
+Everything lives in one file: [`src/config/team.ts`](src/config/team.ts).
+
+```ts
+export const LOCATIONS: OfficeLocation[] = [
+  { id: "auckland", name: "Auckland", shortName: "AKL", lat: -36.85, lng: 174.76 },
+  // add your sites — lat/lng from Google Maps (right-click → copy coordinates)
+];
+
+export const TEAM: TeamMember[] = [
+  { name: "Sarah", locationId: "auckland" },
+  // add your salespeople — locationId must match a location above
+];
+```
+
+Save the file and restart the dev server — that's it:
+
+- each location appears on the NZ map and gets its own TV board at `/l/<id>`
+- new team members appear on the leaderboard immediately (with zeros until
+  their first enquiry)
+- in mock mode enquiries are assigned to each location's team automatically
+- in GoHighLevel mode, `name` is matched case-insensitively against GHL user
+  names, so use the same display names as GHL
+
+**Which URL goes on which TV?**
+
+| TV | URL |
+| --- | --- |
+| Head office / NZ-wide wallboard | `/` |
+| Auckland office | `/l/auckland` |
+| Christchurch office | `/l/christchurch` |
+
+A location TV only shows — and only *chimes* for — its own enquiries. The
+NZ-wide board shows everything, with a Branch column in the table and location
+tags on the leaderboard.
 
 ## Quick start (mock data)
 
@@ -91,8 +132,11 @@ src/
 │   │   └── snapshot/route.ts    # one-shot JSON (polling fallback / debugging)
 │   ├── layout.tsx               # dark theme shell
 │   └── page.tsx
+├── config/
+│   └── team.ts                  # ⭐ YOUR locations + salespeople — edit me
 ├── components/                  # presentational, reusable
 │   ├── Dashboard.tsx            # client root: stream + tick + chime + layout
+│   ├── NzMap.tsx                # live NZ map with per-location status dots
 │   ├── DashboardHeader.tsx
 │   ├── KpiCards.tsx
 │   ├── EnquiryTable.tsx
@@ -107,11 +151,11 @@ src/
 │   └── useChime.ts              # Web Audio bell (no asset files)
 ├── lib/
 │   ├── types.ts                 # shared domain types
+│   ├── stats.ts                 # pure aggregation (stats, KPIs, leaderboard)
 │   └── time.ts                  # timer formatting + SLA maths
 └── server/
     ├── config.ts                # env parsing, fail-soft fallbacks
     ├── store.ts                 # singleton store, fans out to SSE clients
-    ├── stats.ts                 # pure aggregation (stats, KPIs, leaderboard)
     └── datasource/
         ├── types.ts             # DataSource interface
         ├── mock.ts              # day simulator for development/demos
@@ -119,11 +163,13 @@ src/
 ```
 
 **Data flow:** a data source (mock or GHL) maintains today's enquiries and an
-activity log in memory and emits change events → the store computes a full
-`DashboardSnapshot` (stats, KPI counts, leaderboard) → snapshots stream to
-every connected client over **Server-Sent Events** (with automatic reconnect
-and a polling fallback). Response timers tick **client-side** from
-`receivedAt`, so they update every second with zero network traffic.
+activity log in memory and emits change events → the store streams raw
+snapshots to every connected client over **Server-Sent Events** (with
+automatic reconnect and a polling fallback). Each view — a location TV or the
+NZ-wide board — filters the shared stream client-side and derives its own
+stats/KPIs/leaderboard with the pure functions in `src/lib/stats.ts`.
+Response timers tick **client-side** from `receivedAt`, so they update every
+second with zero network traffic.
 
 ### Extending it
 

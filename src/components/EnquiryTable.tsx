@@ -1,5 +1,6 @@
 "use client";
 
+import { getLocation } from "@/config/team";
 import { formatTimeShort } from "@/lib/time";
 import type { Enquiry } from "@/lib/types";
 import { ResponseTimer, SlaDot } from "./ResponseTimer";
@@ -13,6 +14,8 @@ interface EnquiryTableProps {
   breachMinutes: number;
   /** Enquiries that arrived while the board was open — briefly highlighted. */
   recentIds: Set<string>;
+  /** On the NZ-wide board, show which branch each enquiry belongs to. */
+  showLocations?: boolean;
 }
 
 const HIGHLIGHT_WINDOW_MS = 60_000;
@@ -25,7 +28,9 @@ export function EnquiryTable({
   warnMinutes,
   breachMinutes,
   recentIds,
+  showLocations = false,
 }: EnquiryTableProps) {
+  const columnCount = showLocations ? 9 : 8;
   return (
     <section className="flex min-h-0 flex-1 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg shadow-black/30">
       <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
@@ -39,6 +44,7 @@ export function EnquiryTable({
               <th className="px-6 py-3">Time</th>
               <th className="px-4 py-3">Customer</th>
               <th className="px-4 py-3">Phone</th>
+              {showLocations && <th className="px-4 py-3">Branch</th>}
               <th className="px-4 py-3">Source</th>
               <th className="px-4 py-3">Assigned</th>
               <th className="px-4 py-3">Status</th>
@@ -49,7 +55,7 @@ export function EnquiryTable({
           <tbody className="divide-y divide-zinc-800/70 text-xl">
             {enquiries.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-2xl text-zinc-500">
+                <td colSpan={columnCount} className="px-6 py-12 text-center text-2xl text-zinc-500">
                   No enquiries yet today — they’ll appear here the moment they arrive.
                 </td>
               </tr>
@@ -83,6 +89,13 @@ export function EnquiryTable({
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-zinc-400">
                     {enquiry.phone}
                   </td>
+                  {showLocations && (
+                    <td className="px-4 py-3">
+                      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-base font-semibold uppercase tracking-wide text-zinc-400">
+                        {getLocation(enquiry.locationId)?.shortName ?? enquiry.locationId}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-zinc-300">{enquiry.source}</td>
                   <td className="px-4 py-3 text-zinc-300">
                     {enquiry.assignedTo ?? (

@@ -3,7 +3,6 @@ import { loadServerConfig, type ServerConfig } from "./config";
 import { GhlDataSource } from "./datasource/ghl";
 import { MockDataSource } from "./datasource/mock";
 import type { DataSource } from "./datasource/types";
-import { computeDailyStats, computeLeaderboard, computeStatusCounts } from "./stats";
 
 /**
  * Process-wide dashboard store: owns the active data source and fans changes
@@ -28,7 +27,6 @@ export class DashboardStore {
   }
 
   getSnapshot(): DashboardSnapshot {
-    const enquiries = this.source.getEnquiries();
     return {
       generatedAt: new Date().toISOString(),
       config: {
@@ -37,11 +35,8 @@ export class DashboardStore {
         timezone: this.config.timezone,
         dataSource: this.source.kind,
       },
-      enquiries,
-      statusCounts: computeStatusCounts(enquiries),
-      stats: computeDailyStats(enquiries, this.config.slaWarnMinutes),
+      enquiries: this.source.getEnquiries(),
       activity: this.source.getActivity(),
-      leaderboard: computeLeaderboard(enquiries),
     };
   }
 

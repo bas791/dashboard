@@ -32,6 +32,8 @@ export interface Enquiry {
   source: string;
   /** Display name of the assigned salesperson, or null if unassigned */
   assignedTo: string | null;
+  /** Which office/branch this enquiry belongs to (see src/config/team.ts) */
+  locationId: string;
   status: EnquiryStatus;
   /** ISO timestamp the enquiry was received */
   receivedAt: string;
@@ -57,6 +59,8 @@ export interface ActivityEvent {
   at: string;
   type: ActivityType;
   message: string;
+  /** Location the event happened at; omitted for company-wide events */
+  locationId?: string;
 }
 
 export interface DailyStats {
@@ -96,16 +100,15 @@ export interface DashboardConfig {
 }
 
 /**
- * Everything the dashboard renders, computed server-side and pushed to
- * clients over SSE. Timers are derived client-side from receivedAt so they
- * tick every second without server round-trips.
+ * The raw data pushed to clients over SSE. Stats, KPI counts and the
+ * leaderboard are derived CLIENT-side (src/lib/stats.ts) so each view — a
+ * single location's TV or the NZ-wide board — can filter enquiries and
+ * compute its own numbers from one shared stream. Timers likewise tick
+ * client-side from receivedAt with zero network traffic.
  */
 export interface DashboardSnapshot {
   generatedAt: string;
   config: DashboardConfig;
   enquiries: Enquiry[];
-  statusCounts: StatusCounts;
-  stats: DailyStats;
   activity: ActivityEvent[];
-  leaderboard: LeaderboardRow[];
 }

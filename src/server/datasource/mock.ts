@@ -1,3 +1,4 @@
+import { LOCATIONS, teamForLocation } from "@/config/team";
 import type { ActivityEvent, ActivityType, Enquiry, EnquiryStatus } from "@/lib/types";
 import type { DataSource } from "./types";
 
@@ -12,8 +13,6 @@ import type { DataSource } from "./types";
  *    and some are left waiting so the red/pulsing state is visible)
  *  - responded enquiries progress through qualified → booked → won/lost
  */
-
-const SALESPEOPLE = ["Sarah", "Mike", "Jess", "Tom"];
 
 const SOURCES = [
   "Website Form",
@@ -38,6 +37,12 @@ const LAST_NAMES = [
 
 function pick<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+/** A random salesperson for a location, or null if the location has no team. */
+function pickRep(locationId: string): string | null {
+  const team = teamForLocation(locationId);
+  return team.length > 0 ? pick(team).name : null;
 }
 
 function randomBetween(min: number, max: number): number {
@@ -110,12 +115,18 @@ export class MockDataSource implements DataSource {
     for (const l of this.listeners) l();
   }
 
-  private log(type: ActivityType, message: string, at: number = Date.now()): void {
+  private log(
+    type: ActivityType,
+    message: string,
+    locationId: string,
+    at: number = Date.now()
+  ): void {
     this.activity.unshift({
       id: nextId("act"),
       at: new Date(at).toISOString(),
       type,
       message,
+      locationId,
     });
     this.activity = this.activity.slice(0, 100);
   }
@@ -147,12 +158,13 @@ export class MockDataSource implements DataSource {
   /** Create enquiries from earlier today so stats/leaderboard aren't empty. */
   private seedHistory(): void {
     const now = Date.now();
-    const count = 10 + Math.floor(Math.random() * 5);
+    const count = 14 + Math.floor(Math.random() * 6);
     for (let i = 0; i < count; i++) {
       const receivedAt = now - randomBetween(30, 300) * 60_000;
       const responseDelay = randomBetween(30, 14 * 60) * 1000;
       const respondedAt = receivedAt + responseDelay;
-      const assignedTo = pick(SALESPEOPLE);
+      const locationId = pick(LOCATIONS).id;
+      const assignedTo = pickRep(locationId);
       const status = pick<EnquiryStatus>([
         "contacted", "contacted", "qualified", "qualified", "booked", "booked", "won", "lost",
       ]);
@@ -163,42 +175,47 @@ export class MockDataSource implements DataSource {
         phone: randomPhone(),
         source: pick(SOURCES),
         assignedTo,
+        locationId,
         status,
         receivedAt: new Date(receivedAt).toISOString(),
         respondedAt: new Date(respondedAt).toISOString(),
       });
-      this.log("enquiry_received", `${name} submitted a form`, receivedAt);
-      if (status === "won") this.log("won", `Deal won — ${name}`, respondedAt);
+      this.log("enquiry_received", `${name} submitted a form`, locationId, receivedAt);
+      if (status === "won") this.log("won", `Deal won — ${name}`, locationId, respondedAt);
       if (status === "booked")
-        this.log("booked", `Appointment booked with ${name}`, respondedAt);
+        this.log("booked", `Appointment booked with ${name}`, locationId, respondedAt);
     }
     // One recent enquiry still waiting, already past SLA, so the red state
     // is visible immediately on load.
     const staleName = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
     const staleReceived = now - 11.5 * 60_000;
+    const staleLocation = pick(LOCATIONS).id;
     this.enquiries.push({
       id: nextId("enq"),
       contactName: staleName,
       phone: randomPhone(),
       source: pick(SOURCES),
-      assignedTo: pick(SALESPEOPLE),
+      assignedTo: pickRep(staleLocation),
+      locationId: staleLocation,
       status: "new",
       receivedAt: new Date(staleReceived).toISOString(),
       respondedAt: null,
     });
-    this.log("enquiry_received", `${staleName} submitted a form`, staleReceived);
+    this.log("enquiry_received", `${staleName} submitted a form`, staleLocation, staleReceived);
   }
 
   private spawnEnquiry(): void {
     const name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
     const source = pick(SOURCES);
-    const assignedTo = Math.random() < 0.85 ? pick(SALESPEOPLE) : null;
+    const locationId = pick(LOCATIONS).id;
+    const assignedTo = Math.random() < 0.85 ? pickRep(locationId) : null;
     const enquiry: Enquiry = {
       id: nextId("enq"),
       contactName: name,
       phone: randomPhone(),
       source,
       assignedTo,
+      locationId,
       status: "new",
       receivedAt: new Date().toISOString(),
       respondedAt: null,
@@ -206,7 +223,8 @@ export class MockDataSource implements DataSource {
     this.enquiries.push(enquiry);
     this.log(
       "enquiry_received",
-      source === "Phone Enquiry" ? `${name} called in` : `${name} submitted a form`
+      source === "Phone Enquiry" ? `${name} called in` : `${name} submitted a form`,
+      locationId
     );
 
     // 80% of enquiries get responded to, at varying speeds; the rest sit and
@@ -224,9 +242,9 @@ export class MockDataSource implements DataSource {
     if (!enquiry || enquiry.respondedAt) return;
     enquiry.respondedAt = new Date().toISOString();
     enquiry.status = "contacted";
-    const rep = enquiry.assignedTo ?? pick(SALESPEOPLE);
+    const rep = enquiry.assignedTo ?? pickRep(enquiry.locationId) ?? "Someone";
     enquiry.assignedTo = rep;
-    this.log("contacted", `${rep} contacted ${enquiry.contactName}`);
+    this.log("contacted", `${rep} contacted ${enquiry.contactName}`, enquiry.locationId);
     this.maybeProgress(enquiry);
   }
 
@@ -236,13 +254,13 @@ export class MockDataSource implements DataSource {
       this.schedule(randomBetween(1, 5) * 60_000, () => {
         if (enquiry.status !== "contacted") return;
         enquiry.status = "qualified";
-        this.log("qualified", `${enquiry.contactName} marked Qualified`);
+        this.log("qualified", `${enquiry.contactName} marked Qualified`, enquiry.locationId);
 
         if (Math.random() < 0.6) {
           this.schedule(randomBetween(2, 8) * 60_000, () => {
             if (enquiry.status !== "qualified") return;
             enquiry.status = "booked";
-            this.log("booked", `Appointment booked with ${enquiry.contactName}`);
+            this.log("booked", `Appointment booked with ${enquiry.contactName}`, enquiry.locationId);
 
             this.schedule(randomBetween(3, 10) * 60_000, () => {
               if (enquiry.status !== "booked") return;
@@ -252,7 +270,8 @@ export class MockDataSource implements DataSource {
                 won ? "won" : "lost",
                 won
                   ? `Deal won — ${enquiry.contactName}`
-                  : `Lead lost — ${enquiry.contactName}`
+                  : `Lead lost — ${enquiry.contactName}`,
+                enquiry.locationId
               );
             });
           });

@@ -1,3 +1,4 @@
+import { getLocation, locationForMember } from "@/config/team";
 import { formatDuration } from "@/lib/time";
 import type { LeaderboardRow } from "@/lib/types";
 
@@ -6,7 +7,13 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 /** Cap the wallboard at the top performers so the layout never overflows. */
 const MAX_ROWS = 5;
 
-export function Leaderboard({ rows: allRows }: { rows: LeaderboardRow[] }) {
+interface LeaderboardProps {
+  rows: LeaderboardRow[];
+  /** On the NZ-wide board, tag each person with their office */
+  showLocations?: boolean;
+}
+
+export function Leaderboard({ rows: allRows, showLocations = false }: LeaderboardProps) {
   const rows = allRows.slice(0, MAX_ROWS);
   return (
     <section className="shrink-0 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg shadow-black/30">
@@ -40,6 +47,7 @@ export function Leaderboard({ rows: allRows }: { rows: LeaderboardRow[] }) {
                   {MEDALS[index] ?? ""}
                 </span>
                 {row.name}
+                {showLocations && <LocationTag name={row.name} />}
               </td>
               <td className="px-4 py-2 text-right tabular-nums text-zinc-300">{row.assigned}</td>
               <td className="px-4 py-2 text-right tabular-nums text-zinc-300">{row.responded}</td>
@@ -56,5 +64,16 @@ export function Leaderboard({ rows: allRows }: { rows: LeaderboardRow[] }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+function LocationTag({ name }: { name: string }) {
+  const locationId = locationForMember(name);
+  const location = locationId ? getLocation(locationId) : undefined;
+  if (!location) return null;
+  return (
+    <span className="ml-2.5 rounded-md bg-zinc-800 px-1.5 py-0.5 text-sm font-medium uppercase tracking-wide text-zinc-400">
+      {location.shortName}
+    </span>
   );
 }

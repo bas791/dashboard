@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { LOCATIONS, type OfficeLocation } from "@/config/team";
 import { formatClock, formatDate, formatDuration } from "@/lib/time";
 import type { DailyStats } from "@/lib/types";
 import type { ConnectionState } from "@/hooks/useDashboardStream";
@@ -10,17 +12,34 @@ interface DashboardHeaderProps {
   stats: DailyStats;
   connection: ConnectionState;
   dataSource: "mock" | "ghl";
+  /** Set on a single-office view; undefined on the NZ-wide board */
+  currentLocation?: OfficeLocation;
 }
 
-export function DashboardHeader({ now, timezone, stats, connection, dataSource }: DashboardHeaderProps) {
+export function DashboardHeader({ now, timezone, stats, connection, dataSource, currentLocation }: DashboardHeaderProps) {
   const date = new Date(now);
   return (
-    <header className="flex items-center justify-between gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-8 py-5 shadow-lg shadow-black/30">
+    <header className="flex items-center justify-between gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-8 py-4 shadow-lg shadow-black/30">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
           Sales Command Centre
+          <span className="ml-3 text-zinc-500">·</span>
+          <span className="ml-3 text-sky-300">
+            {currentLocation ? currentLocation.name : "New Zealand"}
+          </span>
         </h1>
-        <p className="text-xl text-zinc-400">{formatDate(date, timezone)}</p>
+        <p className="text-lg text-zinc-400">{formatDate(date, timezone)}</p>
+        <nav className="mt-1.5 flex items-center gap-1.5 text-sm">
+          <ViewChip href="/" label="NZ" active={!currentLocation} />
+          {LOCATIONS.map((location) => (
+            <ViewChip
+              key={location.id}
+              href={`/l/${location.id}`}
+              label={location.shortName}
+              active={currentLocation?.id === location.id}
+            />
+          ))}
+        </nav>
       </div>
 
       <div className="flex items-center gap-10">
@@ -69,6 +88,21 @@ export function DashboardHeader({ now, timezone, stats, connection, dataSource }
         </div>
       </div>
     </header>
+  );
+}
+
+function ViewChip({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-md px-2 py-0.5 font-semibold uppercase tracking-wide transition ${
+        active
+          ? "bg-sky-500/20 text-sky-300 ring-1 ring-inset ring-sky-400/40"
+          : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
 

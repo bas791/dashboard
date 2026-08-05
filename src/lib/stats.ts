@@ -8,8 +8,9 @@ import type {
 } from "@/lib/types";
 
 /**
- * Pure aggregation functions over today's enquiries. Data-source agnostic:
- * both the mock simulator and the GoHighLevel poller feed the same shapes in.
+ * Pure aggregation functions over today's enquiries. They run CLIENT-side on
+ * whatever slice of enquiries a view shows (one location, or all of NZ), so
+ * every board derives its own stats from the single shared SSE stream.
  */
 
 export function computeStatusCounts(enquiries: Enquiry[]): StatusCounts {
@@ -71,8 +72,17 @@ export function computeDailyStats(
 const SALE_STATUSES: EnquiryStatus[] = ["won"];
 const BOOKED_STATUSES: EnquiryStatus[] = ["booked", "won"];
 
-export function computeLeaderboard(enquiries: Enquiry[]): LeaderboardRow[] {
+/**
+ * Per-salesperson performance. `alwaysInclude` lists configured team members
+ * (src/config/team.ts) so new employees appear on the board with zeros from
+ * day one, before their first enquiry is assigned.
+ */
+export function computeLeaderboard(
+  enquiries: Enquiry[],
+  alwaysInclude: string[] = []
+): LeaderboardRow[] {
   const byPerson = new Map<string, Enquiry[]>();
+  for (const name of alwaysInclude) byPerson.set(name, []);
   for (const e of enquiries) {
     if (!e.assignedTo) continue;
     const list = byPerson.get(e.assignedTo) ?? [];
