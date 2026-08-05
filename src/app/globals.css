@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/*
+ * Wallboard animations. Kept subtle: the TV is glanceable, not distracting.
+ */
+
+/* Gentle attention pulse (orange / waiting states) */
+@keyframes sla-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+/* Faster, stronger pulse for breached SLAs — meant to be noticed */
+@keyframes sla-pulse-fast {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.985);
+  }
+}
+
+/* New enquiry row flash: bright sky glow that settles over a few seconds */
+@keyframes new-row {
+  0% {
+    background-color: rgb(14 165 233 / 0.45);
+  }
+  100% {
+    background-color: rgb(14 165 233 / 0.1);
+  }
+}
+
+.animate-sla-pulse {
+  animation: sla-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-sla-pulse-fast {
+  animation: sla-pulse-fast 1.1s ease-in-out infinite;
+}
+
+.animate-new-row {
+  animation: new-row 3s ease-out;
+}
+
+/* In fullscreen TV mode the mouse pointer disappears */
+:fullscreen,
+:fullscreen * {
+  cursor: none;
+}
+
+/* Slim scrollbars so overflowing panels look clean on the TV */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(63 63 70) transparent;
+}
