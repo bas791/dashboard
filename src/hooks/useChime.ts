@@ -13,6 +13,7 @@ export function useChime(): {
   soundEnabled: boolean;
   enableSound: () => void;
   playChime: () => void;
+  playSiren: () => void;
 } {
   const contextRef = useRef<AudioContext | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -84,5 +85,43 @@ export function useChime(): {
     strike(now + 0.18, 1174.66, 0.25);
   }, []);
 
-  return { soundEnabled, enableSound, playChime };
+  /**
+   * Two-tone alarm for SLA breaches — a lead has sat uncalled past the red
+   * threshold. Deliberately harsher than the bell so it cuts through office
+   * noise, but band-limited so it doesn't distort on TV speakers.
+   */
+  const playSiren = useCallback(() => {
+    const ctx = contextRef.current;
+    if (!ctx || ctx.state !== "running") return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = "square";
+    filter.type = "lowpass";
+    filter.frequency.value = 2200;
+
+    // Hi–lo alternation every 300ms, like a classic two-tone alarm.
+    const HI = 932.33; // B♭5
+    const LO = 622.25; // E♭5
+    const STEPS = 8;
+    for (let i = 0; i < STEPS; i++) {
+      osc.frequency.setValueAtTime(i % 2 === 0 ? HI : LO, now + i * 0.3);
+    }
+    const total = STEPS * 0.3;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.28, now + 0.04);
+    gain.gain.setValueAtTime(0.28, now + total - 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + total);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + total);
+  }, []);
+
+  return { soundEnabled, enableSound, playChime, playSiren };
 }

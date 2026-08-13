@@ -20,6 +20,12 @@ tracks daily stats and a salesperson leaderboard — all updating live.
   GoHighLevel) the timer stops and shows **✓ Responded — in 3m 42s**.
 - **New enquiry alert** — a bell chime (synthesised in-browser, played once per
   enquiry) plus a highlighted row.
+- **SLA siren** — if a lead is still uncalled when its timer goes red (10
+  minutes), a two-tone siren sounds, and repeats every minute until someone
+  responds. It goes quiet once the lead passes 15 minutes (the row stays red
+  and pulsing) so a dead lead can't deafen the office all day.
+- **Lead sources** — a "where today's leads came from" panel next to the
+  leaderboard: volume bar per source, busiest first, with how many closed.
 - **Daily stats** — average / fastest / slowest response, SLA %, responded
   within 5 minutes, number over SLA.
 - **Live activity feed** — form submissions, contacts, bookings, wins.

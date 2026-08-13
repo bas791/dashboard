@@ -4,6 +4,7 @@ import type {
   Enquiry,
   EnquiryStatus,
   LeaderboardRow,
+  SourceRow,
   StatusCounts,
 } from "@/lib/types";
 
@@ -67,6 +68,21 @@ export function computeDailyStats(
     respondedWithinSlaCount: respondedWithinSla,
     overSlaCount: respondedLate + waitingOverSla,
   };
+}
+
+/** Volume and wins per lead source, busiest sources first. */
+export function computeSourceBreakdown(enquiries: Enquiry[]): SourceRow[] {
+  const bySource = new Map<string, SourceRow>();
+  for (const e of enquiries) {
+    const source = e.source || "Unknown";
+    const row = bySource.get(source) ?? { source, total: 0, won: 0 };
+    row.total += 1;
+    if (e.status === "won") row.won += 1;
+    bySource.set(source, row);
+  }
+  return [...bySource.values()].sort(
+    (a, b) => b.total - a.total || b.won - a.won || a.source.localeCompare(b.source)
+  );
 }
 
 const SALE_STATUSES: EnquiryStatus[] = ["won"];

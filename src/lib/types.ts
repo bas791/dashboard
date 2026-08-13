@@ -90,6 +90,15 @@ export interface LeaderboardRow {
 
 export type StatusCounts = Record<EnquiryStatus, number>;
 
+/** One row of the "where today's leads came from" breakdown. */
+export interface SourceRow {
+  source: string;
+  /** Enquiries received today from this source */
+  total: number;
+  /** Of those, how many have closed as won */
+  won: number;
+}
+
 /** Runtime settings the client needs (thresholds drive timer colours). */
 export interface DashboardConfig {
   slaWarnMinutes: number;
