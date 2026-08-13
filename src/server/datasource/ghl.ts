@@ -91,8 +91,6 @@ export class GhlDataSource implements DataSource {
   private userMap = new Map<string, string>();
   private trackedPipelineId: string | null = null;
   private metadataLoaded = false;
-  /** Some accounts reject the `date` filter on /opportunities/search (400). */
-  private dateParamSupported = true;
   private consecutiveFailures = 0;
   private activityCounter = 0;
 
@@ -206,24 +204,15 @@ export class GhlDataSource implements DataSource {
           page: String(page),
         };
         // Only the tracked pipeline — otherwise quote/job/invoice pipelines
-        // would surface as phantom "waiting" enquiries.
+        // would surface as phantom "waiting" enquiries. No server-side date
+        // filter: its semantics vary by account, and a wrong guess silently
+        // returns nothing. The client-side today check below does the work.
         if (this.trackedPipelineId) params.pipeline_id = this.trackedPipelineId;
-        // The search API wants mm-dd-yyyy, not ISO. If the account still
-        // rejects it (400), drop the filter — the client-side date check
-        // below keeps the board correct either way.
-        if (this.dateParamSupported) params.date = this.searchDateParam();
 
-        let data: { opportunities: GhlOpportunity[] };
-        try {
-          data = await this.request("/opportunities/search", params);
-        } catch (err) {
-          if (this.dateParamSupported && String(err).includes(" 400 ")) {
-            this.dateParamSupported = false;
-            console.warn("[ghl] search rejected the date filter — retrying without it");
-            continue;
-          }
-          throw err;
-        }
+        const data = await this.request<{ opportunities: GhlOpportunity[] }>(
+          "/opportunities/search",
+          params
+        );
         results.push(...(data.opportunities ?? []));
         if (!data.opportunities || data.opportunities.length < 100 || page >= 10) break;
         page += 1;
@@ -254,18 +243,6 @@ export class GhlDataSource implements DataSource {
       console.error("[ghl] poll failed:", err);
       // Keep serving the last good snapshot; the wallboard must not go blank.
     }
-  }
-
-  /** Today's date as mm-dd-yyyy in the dashboard timezone (search API format). */
-  private searchDateParam(): string {
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: this.config.timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-      .format(new Date())
-      .replaceAll("/", "-");
   }
 
   /**
