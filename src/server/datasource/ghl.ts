@@ -70,6 +70,9 @@ const STAGE_KEYWORDS: Array<{ keywords: string[]; status: EnquiryStatus }> = [
   { keywords: ["booked", "appointment", "meeting", "scheduled"], status: "booked" },
   { keywords: ["qualified", "hot", "quoted", "proposal", "quote"], status: "qualified" },
   { keywords: ["contacted", "responded", "in progress", "follow"], status: "contacted" },
+  // Tried to call, no answer — the AI chaser is texting them. Checked before
+  // "new" so "New Lead Chaser AI" doesn't fall into the new-lead bucket.
+  { keywords: ["chaser", "chasing", "no answer", "voicemail", "left message"], status: "chasing" },
   { keywords: ["new", "lead", "enquiry", "inquiry", "incoming"], status: "new" },
 ];
 
@@ -317,6 +320,9 @@ export class GhlDataSource implements DataSource {
         switch (enquiry.status) {
           case "contacted":
             this.pushActivity("contacted", `${who} contacted ${enquiry.contactName}`, now, enquiry.locationId);
+            break;
+          case "chasing":
+            this.pushActivity("chasing", `${who} called ${enquiry.contactName} — no answer, AI chaser on`, now, enquiry.locationId);
             break;
           case "qualified":
             this.pushActivity("qualified", `${enquiry.contactName} marked Qualified`, now, enquiry.locationId);

@@ -10,9 +10,9 @@ import {
 import type { Enquiry, SlaLevel } from "@/lib/types";
 
 const LEVEL_STYLES: Record<SlaLevel, string> = {
-  healthy: "bg-emerald-500/20 text-emerald-300 ring-emerald-400/50",
-  warning: "bg-orange-500/25 text-orange-300 ring-orange-400/60 animate-sla-pulse",
-  breach: "bg-red-500/30 text-red-300 ring-red-400/70 animate-sla-pulse-fast",
+  healthy: "bg-emerald-100 text-emerald-700 ring-emerald-300",
+  warning: "bg-orange-100 text-orange-700 ring-orange-400 animate-sla-pulse",
+  breach: "bg-red-100 text-red-700 ring-red-400 animate-sla-pulse-fast",
 };
 
 interface ResponseTimerProps {
@@ -33,13 +33,13 @@ export function ResponseTimer({ enquiry, now, warnMinutes, breachMinutes }: Resp
     const level = slaLevel(took, warnMinutes, breachMinutes);
     const tone =
       level === "healthy"
-        ? "text-emerald-300"
+        ? "text-emerald-600"
         : level === "warning"
-          ? "text-orange-300"
-          : "text-red-300";
+          ? "text-orange-600"
+          : "text-red-600";
     return (
       <div className="flex flex-col items-start leading-tight">
-        <span className="flex items-center gap-1.5 text-lg font-semibold text-emerald-300">
+        <span className="flex items-center gap-1.5 text-lg font-semibold text-emerald-600">
           <span aria-hidden>✓</span> Responded
         </span>
         <span className={`text-base ${tone}`}>in {formatDuration(took)}</span>
@@ -66,7 +66,7 @@ export function SlaDot({ enquiry, now, warnMinutes, breachMinutes }: ResponseTim
   const level = slaLevel(seconds, warnMinutes, breachMinutes);
   const style =
     level === "healthy"
-      ? "bg-emerald-400"
+      ? "bg-emerald-500"
       : level === "warning"
         ? "bg-orange-400"
         : "bg-red-500";
@@ -75,7 +75,7 @@ export function SlaDot({ enquiry, now, warnMinutes, breachMinutes }: ResponseTim
   return (
     <span className="flex items-center gap-2">
       <span className={`h-4 w-4 rounded-full ${style} ${level !== "healthy" && !enquiry.respondedAt ? "animate-sla-pulse-fast" : ""}`} />
-      <span className="text-lg text-zinc-400">{label}</span>
+      <span className="text-lg text-slate-500">{label}</span>
     </span>
   );
 }

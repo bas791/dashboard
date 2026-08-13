@@ -19,16 +19,16 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ now, timezone, stats, connection, dataSource, currentLocation }: DashboardHeaderProps) {
   const date = new Date(now);
   return (
-    <header className="flex items-center justify-between gap-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-8 py-4 shadow-lg shadow-black/30">
+    <header className="flex items-center justify-between gap-8 rounded-2xl border border-slate-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 px-8 py-4 shadow-md shadow-slate-900/5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           Sales Command Centre
-          <span className="ml-3 text-zinc-500">·</span>
-          <span className="ml-3 text-sky-300">
+          <span className="ml-3 text-slate-400">·</span>
+          <span className="ml-3 text-sky-600">
             {currentLocation ? currentLocation.name : "New Zealand"}
           </span>
         </h1>
-        <p className="text-lg text-zinc-400">{formatDate(date, timezone)}</p>
+        <p className="text-lg text-slate-500">{formatDate(date, timezone)}</p>
         <nav className="mt-1.5 flex items-center gap-1.5 text-sm">
           <ViewChip href="/" label="NZ" active={!currentLocation} />
           {LOCATIONS.map((location) => (
@@ -39,6 +39,7 @@ export function DashboardHeader({ now, timezone, stats, connection, dataSource, 
               active={currentLocation?.id === location.id}
             />
           ))}
+          <ViewChip href="/history" label="History" active={false} />
         </nav>
       </div>
 
@@ -46,7 +47,7 @@ export function DashboardHeader({ now, timezone, stats, connection, dataSource, 
         <HeaderStat
           label="Enquiries today"
           value={String(stats.totalEnquiries)}
-          tone="text-sky-300"
+          tone="text-sky-600"
         />
         <HeaderStat
           label="Avg first response"
@@ -55,20 +56,20 @@ export function DashboardHeader({ now, timezone, stats, connection, dataSource, 
               ? formatDuration(stats.avgResponseSeconds)
               : "—"
           }
-          tone="text-emerald-300"
+          tone="text-emerald-600"
         />
         <HeaderStat
           label="Awaiting response"
           value={String(stats.waitingCount)}
-          tone={stats.waitingCount > 0 ? "text-orange-300" : "text-zinc-300"}
+          tone={stats.waitingCount > 0 ? "text-orange-600" : "text-slate-500"}
         />
       </div>
 
       <div className="flex flex-col items-end gap-1">
-        <div className="font-mono text-5xl font-bold tabular-nums text-zinc-100">
+        <div className="font-mono text-5xl font-bold tabular-nums text-slate-900">
           {formatClock(date, timezone)}
         </div>
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
           <span
             className={`h-2.5 w-2.5 rounded-full ${
               connection === "live"
@@ -97,8 +98,8 @@ function ViewChip({ href, label, active }: { href: string; label: string; active
       href={href}
       className={`rounded-md px-2 py-0.5 font-semibold uppercase tracking-wide transition ${
         active
-          ? "bg-sky-500/20 text-sky-300 ring-1 ring-inset ring-sky-400/40"
-          : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+          ? "bg-sky-100 text-sky-700 ring-1 ring-inset ring-sky-300"
+          : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
       }`}
     >
       {label}
@@ -110,7 +111,7 @@ function HeaderStat({ label, value, tone }: { label: string; value: string; tone
   return (
     <div className="text-center">
       <div className={`text-4xl font-bold tabular-nums ${tone}`}>{value}</div>
-      <div className="text-base uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="text-base uppercase tracking-wider text-slate-500">{label}</div>
     </div>
   );
 }

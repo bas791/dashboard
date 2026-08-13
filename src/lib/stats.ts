@@ -18,6 +18,7 @@ export function computeStatusCounts(enquiries: Enquiry[]): StatusCounts {
   const counts: StatusCounts = {
     new: 0,
     contacted: 0,
+    chasing: 0,
     qualified: 0,
     booked: 0,
     won: 0,

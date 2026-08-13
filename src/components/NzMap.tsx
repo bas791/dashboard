@@ -68,10 +68,10 @@ function toPath(points: Array<[number, number]>): string {
 const ISLAND_PATHS = [NORTH_ISLAND, SOUTH_ISLAND, STEWART_ISLAND].map(toPath);
 
 const DOT_COLOURS: Record<SlaLevel | "idle", string> = {
-  healthy: "fill-emerald-400",
+  healthy: "fill-emerald-500",
   warning: "fill-orange-400",
   breach: "fill-red-500",
-  idle: "fill-zinc-600",
+  idle: "fill-slate-400",
 };
 
 interface LocationLive {
@@ -126,7 +126,7 @@ export function NzMap({ enquiries, now, warnMinutes, breachMinutes }: NzMapProps
   }));
 
   return (
-    <section className="flex shrink-0 gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 shadow-lg shadow-black/30">
+    <section className="flex shrink-0 gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-900/5">
       <svg
         viewBox={`0 0 ${MAP_W} ${MAP_H}`}
         className="h-60 w-auto shrink-0"
@@ -137,7 +137,7 @@ export function NzMap({ enquiries, now, warnMinutes, breachMinutes }: NzMapProps
           <path
             key={d}
             d={d}
-            className="fill-zinc-800/90 stroke-zinc-600"
+            className="fill-slate-200 stroke-slate-400"
             strokeWidth={1.5}
             strokeLinejoin="round"
           />
@@ -152,7 +152,7 @@ export function NzMap({ enquiries, now, warnMinutes, breachMinutes }: NzMapProps
                 <text
                   x={x + 12}
                   y={y + 4}
-                  className="fill-zinc-300 text-[11px] font-bold"
+                  className="fill-slate-600 text-[11px] font-bold"
                 >
                   {location.shortName}
                   {live.waiting > 0 ? ` · ${live.waiting}` : ""}
@@ -164,12 +164,12 @@ export function NzMap({ enquiries, now, warnMinutes, breachMinutes }: NzMapProps
       </svg>
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-        <h2 className="mb-1 text-xl font-bold text-zinc-100">Locations</h2>
+        <h2 className="mb-1 text-xl font-bold text-slate-900">Locations</h2>
         {perLocation.map(({ location, live }) => (
           <Link
             key={location.id}
             href={`/l/${location.id}`}
-            className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition hover:bg-zinc-800/70"
+            className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition hover:bg-slate-100"
           >
             <span
               className={`h-3.5 w-3.5 shrink-0 rounded-full ${
@@ -178,22 +178,22 @@ export function NzMap({ enquiries, now, warnMinutes, breachMinutes }: NzMapProps
                   : live.worst === "warning"
                     ? "bg-orange-400"
                     : live.worst === "idle"
-                      ? "bg-zinc-600"
-                      : "bg-emerald-400"
+                      ? "bg-slate-400"
+                      : "bg-emerald-500"
               }`}
             />
-            <span className="truncate text-lg font-semibold text-zinc-200">
+            <span className="truncate text-lg font-semibold text-slate-700">
               {location.name}
             </span>
-            <span className="ml-auto whitespace-nowrap text-base tabular-nums text-zinc-400">
+            <span className="ml-auto whitespace-nowrap text-base tabular-nums text-slate-500">
               {live.total} enq
               {live.waiting > 0 && (
-                <span className="ml-1.5 font-bold text-orange-300">
+                <span className="ml-1.5 font-bold text-orange-600">
                   {live.waiting} waiting
                 </span>
               )}
               {live.waiting === 0 && live.avgResponseSeconds !== null && (
-                <span className="ml-1.5 text-zinc-500">
+                <span className="ml-1.5 text-slate-400">
                   avg {formatDuration(live.avgResponseSeconds)}
                 </span>
               )}

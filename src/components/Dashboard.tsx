@@ -154,21 +154,21 @@ export function Dashboard({ locationId }: { locationId?: string }) {
 
   if (!snapshot || !config) {
     return (
-      <main className="flex h-screen items-center justify-center bg-zinc-950">
+      <main className="flex h-screen items-center justify-center bg-slate-100">
         <div className="text-center">
           <div className="mb-4 text-6xl" aria-hidden>📡</div>
-          <p className="text-3xl font-semibold text-zinc-300">Connecting to dashboard…</p>
+          <p className="text-3xl font-semibold text-slate-600">Connecting to dashboard…</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex h-screen flex-col gap-4 overflow-hidden bg-zinc-950 p-4">
+    <main className="flex h-screen flex-col gap-4 overflow-hidden bg-slate-100 p-4">
       {!soundEnabled && (
         <button
           onClick={enableSound}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/15 px-4 py-2 text-lg font-semibold text-amber-300 shadow-lg backdrop-blur transition hover:bg-amber-500/25"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-amber-400 bg-amber-100 px-4 py-2 text-lg font-semibold text-amber-700 shadow-lg transition hover:bg-amber-200"
         >
           🔔 Tap to enable sound alerts
         </button>

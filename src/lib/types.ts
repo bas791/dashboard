@@ -3,10 +3,15 @@
  * (components). Keep this file dependency-free so it can be imported anywhere.
  */
 
-/** Pipeline stages an enquiry moves through. Mirrors the GoHighLevel pipeline. */
+/**
+ * Pipeline stages an enquiry moves through. Mirrors the GoHighLevel pipeline.
+ * "chasing" = we tried to call but they didn't answer; the AI chaser is
+ * texting them (counts as responded — the response attempt was made).
+ */
 export type EnquiryStatus =
   | "new"
   | "contacted"
+  | "chasing"
   | "qualified"
   | "booked"
   | "won"
@@ -15,6 +20,7 @@ export type EnquiryStatus =
 export const ENQUIRY_STATUSES: EnquiryStatus[] = [
   "new",
   "contacted",
+  "chasing",
   "qualified",
   "booked",
   "won",
@@ -47,6 +53,7 @@ export interface Enquiry {
 export type ActivityType =
   | "enquiry_received"
   | "contacted"
+  | "chasing"
   | "qualified"
   | "booked"
   | "won"

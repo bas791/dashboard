@@ -166,7 +166,7 @@ export class MockDataSource implements DataSource {
       const locationId = pick(LOCATIONS).id;
       const assignedTo = pickRep(locationId);
       const status = pick<EnquiryStatus>([
-        "contacted", "contacted", "qualified", "qualified", "booked", "booked", "won", "lost",
+        "contacted", "contacted", "chasing", "qualified", "qualified", "booked", "booked", "won", "lost",
       ]);
       const name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
       this.enquiries.push({
