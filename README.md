@@ -88,8 +88,10 @@ audio can play) — after that every new enquiry chimes automatically.
 
 1. In GHL: **Settings → Private Integrations → New**. Grant scopes:
    `contacts.readonly`, `opportunities.readonly`, `conversations.readonly`,
-   `users.readonly`.
-2. Copy `.env.example` to `.env.local` and fill in:
+   `users.readonly`. Copy the token (starts with `pit-`).
+2. Find your Location ID: in GHL it's in **Settings → Business Profile**
+   (also visible in the sub-account URL).
+3. Copy `.env.example` to `.env.local` and fill in:
 
    ```bash
    DATA_SOURCE=ghl
@@ -98,7 +100,13 @@ audio can play) — after that every new enquiry chimes automatically.
    GHL_PIPELINE_ID=            # optional; first pipeline used if empty
    ```
 
-3. Restart the server.
+4. Restart the server.
+5. **Verify:** open <http://localhost:3000/api/ghl/check>. It tests the
+   token, lists your pipelines and shows which dashboard status each stage
+   name maps to, and cross-checks GHL user names against
+   `src/config/team.ts` — fix anything it flags before trusting the board.
+   The header badge switches from "demo data" to "GoHighLevel" once the
+   live source is active.
 
 The server polls the GHL v2 API (`/opportunities/search`) every 15 seconds
 (configurable via `GHL_POLL_INTERVAL_MS`) and maps your pipeline stages onto

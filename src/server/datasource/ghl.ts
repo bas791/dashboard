@@ -70,7 +70,7 @@ const STAGE_KEYWORDS: Array<{ keywords: string[]; status: EnquiryStatus }> = [
   { keywords: ["new", "lead", "enquiry", "inquiry", "incoming"], status: "new" },
 ];
 
-function mapStageNameToStatus(stageName: string): EnquiryStatus {
+export function mapStageNameToStatus(stageName: string): EnquiryStatus {
   const lower = stageName.toLowerCase();
   for (const { keywords, status } of STAGE_KEYWORDS) {
     if (keywords.some((k) => lower.includes(k))) return status;
