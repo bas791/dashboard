@@ -44,6 +44,7 @@ interface GhlOpportunity {
   source?: string;
   createdAt?: string;
   dateAdded?: string;
+  updatedAt?: string;
   lastStatusChangeAt?: string;
   lastStageChangeAt?: string;
   contact?: {
@@ -230,7 +231,8 @@ export class GhlDataSource implements DataSource {
         return created ? new Date(created) >= startOfDay : false;
       });
 
-      const next = todays.map((opp) => this.toEnquiry(opp));
+      const prevById = new Map(this.enquiries.map((e) => [e.id, e]));
+      const next = todays.map((opp) => this.toEnquiry(opp, prevById.get(opp.id)));
       this.diffIntoActivity(next);
       this.enquiries = next;
       this.consecutiveFailures = 0;
@@ -258,7 +260,7 @@ export class GhlDataSource implements DataSource {
     return locationForMember(assignedName) ?? fallback;
   }
 
-  private toEnquiry(opp: GhlOpportunity): Enquiry {
+  private toEnquiry(opp: GhlOpportunity, prev?: Enquiry): Enquiry {
     const receivedAt = opp.createdAt ?? opp.dateAdded ?? new Date().toISOString();
     let status: EnquiryStatus =
       (opp.pipelineStageId && this.stageMap.get(opp.pipelineStageId)) || "new";
@@ -266,13 +268,21 @@ export class GhlDataSource implements DataSource {
     if (opp.status === "won") status = "won";
     if (opp.status === "lost" || opp.status === "abandoned") status = "lost";
 
-    // First response = the enquiry left the "new" stage. lastStageChangeAt is
-    // the closest signal the opportunity object carries; a webhook-based
-    // upgrade can later record the exact first-contact time.
-    const respondedAt =
-      status !== "new"
-        ? opp.lastStageChangeAt ?? opp.lastStatusChangeAt ?? receivedAt
-        : null;
+    // First response = the enquiry left the "new" stage. Once recorded it is
+    // frozen (prev wins) so later stage moves don't inflate the response
+    // time. When the payload carries no stage-change timestamp (e.g. a lead
+    // marked won/lost directly), fall back to the moment we observed the
+    // change — never to receivedAt, which would fake a 0s response.
+    let respondedAt: string | null = null;
+    if (status !== "new") {
+      respondedAt =
+        prev?.respondedAt ??
+        opp.lastStageChangeAt ??
+        opp.lastStatusChangeAt ??
+        (prev
+          ? new Date().toISOString() // it changed between our polls: now
+          : opp.updatedAt ?? receivedAt); // unseen history (restart) — best guess
+    }
 
     const assignedTo = opp.assignedTo
       ? this.userMap.get(opp.assignedTo) ?? "Unknown"
