@@ -89,7 +89,10 @@ export class GhlDataSource implements DataSource {
   private pollHandle: ReturnType<typeof setInterval> | null = null;
   private stageMap = new Map<string, EnquiryStatus>();
   private userMap = new Map<string, string>();
+  private trackedPipelineId: string | null = null;
   private metadataLoaded = false;
+  /** Some accounts reject the `date` filter on /opportunities/search (400). */
+  private dateParamSupported = true;
   private consecutiveFailures = 0;
   private activityCounter = 0;
 
@@ -159,20 +162,30 @@ export class GhlDataSource implements DataSource {
     if (!pipeline) {
       throw new Error("No GoHighLevel pipeline found for this location");
     }
+    this.trackedPipelineId = pipeline.id;
     this.stageMap.clear();
     for (const stage of pipeline.stages) {
       this.stageMap.set(stage.id, mapStageNameToStatus(stage.name));
     }
 
-    const users = await this.request<{ users: GhlUser[] }>("/users/", {
-      locationId: this.config.ghl.locationId,
-    });
-    this.userMap.clear();
-    for (const user of users.users) {
-      const name =
-        user.name ??
-        [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-      if (name) this.userMap.set(user.id, name);
+    // Non-fatal: without the users.readonly scope the board still runs,
+    // assigned reps just show as "Unknown".
+    try {
+      const users = await this.request<{ users: GhlUser[] }>("/users/", {
+        locationId: this.config.ghl.locationId,
+      });
+      this.userMap.clear();
+      for (const user of users.users) {
+        const name =
+          user.name ??
+          [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+        if (name) this.userMap.set(user.id, name);
+      }
+    } catch (err) {
+      console.warn(
+        "[ghl] could not list users (is the View Users scope granted to the Private Integration?):",
+        err
+      );
     }
 
     this.metadataLoaded = true;
@@ -187,21 +200,43 @@ export class GhlDataSource implements DataSource {
       let page = 1;
       // The search endpoint pages at 100 — loop until a short page.
       for (;;) {
-        const data = await this.request<{
-          opportunities: GhlOpportunity[];
-          meta?: { total?: number };
-        }>("/opportunities/search", {
+        const params: Record<string, string> = {
           location_id: this.config.ghl.locationId,
-          date: startOfDay.toISOString(),
           limit: "100",
           page: String(page),
-        });
+        };
+        // Only the tracked pipeline — otherwise quote/job/invoice pipelines
+        // would surface as phantom "waiting" enquiries.
+        if (this.trackedPipelineId) params.pipeline_id = this.trackedPipelineId;
+        // The search API wants mm-dd-yyyy, not ISO. If the account still
+        // rejects it (400), drop the filter — the client-side date check
+        // below keeps the board correct either way.
+        if (this.dateParamSupported) params.date = this.searchDateParam();
+
+        let data: { opportunities: GhlOpportunity[] };
+        try {
+          data = await this.request("/opportunities/search", params);
+        } catch (err) {
+          if (this.dateParamSupported && String(err).includes(" 400 ")) {
+            this.dateParamSupported = false;
+            console.warn("[ghl] search rejected the date filter — retrying without it");
+            continue;
+          }
+          throw err;
+        }
         results.push(...(data.opportunities ?? []));
         if (!data.opportunities || data.opportunities.length < 100 || page >= 10) break;
         page += 1;
       }
 
       const todays = results.filter((opp) => {
+        if (
+          this.trackedPipelineId &&
+          opp.pipelineId &&
+          opp.pipelineId !== this.trackedPipelineId
+        ) {
+          return false;
+        }
         const created = opp.createdAt ?? opp.dateAdded;
         return created ? new Date(created) >= startOfDay : false;
       });
@@ -219,6 +254,18 @@ export class GhlDataSource implements DataSource {
       console.error("[ghl] poll failed:", err);
       // Keep serving the last good snapshot; the wallboard must not go blank.
     }
+  }
+
+  /** Today's date as mm-dd-yyyy in the dashboard timezone (search API format). */
+  private searchDateParam(): string {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: this.config.timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .format(new Date())
+      .replaceAll("/", "-");
   }
 
   /**
