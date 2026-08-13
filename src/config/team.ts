@@ -14,6 +14,8 @@
  * against GHL user names, so use the same display names as in GHL.
  */
 
+import type { EnquiryStatus } from "@/lib/types";
+
 export interface OfficeLocation {
   /** URL-safe id: /l/<id> */
   id: string;
@@ -43,6 +45,22 @@ export const TEAM: TeamMember[] = [
   { name: "Madelien Van Der Merwe", locationId: "main" },
   { name: "Nikko Sandoval", locationId: "main" },
 ];
+
+/**
+ * Business-language labels for pipeline statuses — rename these to match how
+ * your team talks. Used on the KPI cards and the status badges.
+ */
+export const STATUS_LABELS: Partial<Record<EnquiryStatus, string>> = {
+  qualified: "Quote Sent",
+  won: "Job Won",
+};
+
+/**
+ * Which statuses get their own KPI card, in order. "Enquiries Today" and
+ * "Waiting" always come first. Statuses your pipeline never produces
+ * (e.g. contacted/booked here) are simply left out.
+ */
+export const KPI_STATUSES: EnquiryStatus[] = ["chasing", "qualified", "won", "lost"];
 
 export function getLocation(id: string): OfficeLocation | undefined {
   return LOCATIONS.find((l) => l.id === id);

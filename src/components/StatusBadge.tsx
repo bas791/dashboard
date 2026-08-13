@@ -1,3 +1,4 @@
+import { STATUS_LABELS } from "@/config/team";
 import type { EnquiryStatus } from "@/lib/types";
 
 const STATUS_STYLES: Record<EnquiryStatus, { label: string; className: string }> = {
@@ -16,7 +17,7 @@ export function StatusBadge({ status }: { status: EnquiryStatus }) {
     <span
       className={`inline-flex items-center rounded-full px-3 py-1 text-lg font-semibold ring-1 ring-inset ${style.className}`}
     >
-      {style.label}
+      {STATUS_LABELS[status] ?? style.label}
     </span>
   );
 }
