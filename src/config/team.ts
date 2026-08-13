@@ -30,19 +30,18 @@ export interface TeamMember {
 }
 
 export const LOCATIONS: OfficeLocation[] = [
-  { id: "auckland", name: "Auckland", shortName: "AKL", lat: -36.85, lng: 174.76 },
-  { id: "hamilton", name: "Hamilton", shortName: "HAM", lat: -37.79, lng: 175.28 },
-  { id: "wellington", name: "Wellington", shortName: "WLG", lat: -41.29, lng: 174.78 },
-  { id: "christchurch", name: "Christchurch", shortName: "CHC", lat: -43.53, lng: 172.64 },
+  // lat/lng only positions the dot on the NZ map — update to your city
+  // (Google Maps → right-click your office → copy coordinates).
+  { id: "main", name: "Maximum Wash", shortName: "MW", lat: -36.85, lng: 174.76 },
 ];
 
 export const TEAM: TeamMember[] = [
-  { name: "Sarah", locationId: "auckland" },
-  { name: "Mike", locationId: "auckland" },
-  { name: "Jess", locationId: "hamilton" },
-  { name: "Tom", locationId: "wellington" },
-  { name: "Emma", locationId: "christchurch" },
-  { name: "Dave", locationId: "christchurch" },
+  // Names must match GoHighLevel user names (case-insensitive).
+  { name: "Bas van Wel", locationId: "main" },
+  { name: "Herman Thompson", locationId: "main" },
+  { name: "Jarryd Pearce", locationId: "main" },
+  { name: "Madelien Van Der Merwe", locationId: "main" },
+  { name: "Nikko Sandoval", locationId: "main" },
 ];
 
 export function getLocation(id: string): OfficeLocation | undefined {

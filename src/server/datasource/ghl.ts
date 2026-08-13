@@ -62,10 +62,12 @@ interface GhlUser {
 }
 
 const STAGE_KEYWORDS: Array<{ keywords: string[]; status: EnquiryStatus }> = [
-  { keywords: ["won", "sold", "closed won", "sale"], status: "won" },
-  { keywords: ["lost", "closed lost", "dead", "abandoned"], status: "lost" },
+  // "lost" outranks "won" so "Archived - Not Won" style stages don't match "won".
+  { keywords: ["not won", "lost", "closed lost", "dead", "abandoned", "declined", "cancelled"], status: "lost" },
+  // "service job" — an enquiry converted straight into a job is a sale.
+  { keywords: ["won", "sold", "closed won", "sale", "service job"], status: "won" },
   { keywords: ["booked", "appointment", "meeting", "scheduled"], status: "booked" },
-  { keywords: ["qualified", "hot", "quoted", "proposal"], status: "qualified" },
+  { keywords: ["qualified", "hot", "quoted", "proposal", "quote"], status: "qualified" },
   { keywords: ["contacted", "responded", "in progress", "follow"], status: "contacted" },
   { keywords: ["new", "lead", "enquiry", "inquiry", "incoming"], status: "new" },
 ];
