@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getLocation, locationForMember } from "@/config/team";
 import { formatDuration } from "@/lib/time";
 import type { LeaderboardRow } from "@/lib/types";
@@ -46,7 +47,12 @@ export function Leaderboard({ rows: allRows, showLocations = false }: Leaderboar
                 <span className="mr-2" aria-hidden>
                   {MEDALS[index] ?? ""}
                 </span>
-                {row.name}
+                <Link
+                  href={`/p/${encodeURIComponent(row.name)}`}
+                  className="underline-offset-2 hover:text-sky-700 hover:underline"
+                >
+                  {row.name}
+                </Link>
                 {showLocations && <LocationTag name={row.name} />}
               </td>
               <td className="px-4 py-2 text-right tabular-nums text-slate-600">{row.assigned}</td>

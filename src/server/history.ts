@@ -4,19 +4,39 @@ import { mapStageNameToStatus } from "./datasource/ghl";
 import type { EnquiryStatus } from "@/lib/types";
 
 /**
- * Day-by-day history, computed on demand straight from the GoHighLevel API —
+ * Historical data, computed on demand straight from the GoHighLevel API —
  * no local database, so it works identically on any host and survives
- * restarts/redeploys. Each request fetches the tracked pipeline's
- * opportunities for the window and aggregates per calendar day in the
- * dashboard timezone.
+ * restarts/redeploys. One fetch returns enquiry-level records; the
+ * aggregate day-by-day view is derived from them.
  *
  * Response times use GHL's stage-change timestamp where present. Leads whose
- * record carries no usable timestamp are counted in volume but excluded from
- * the response-time average (better no data than fake data).
+ * record carries no usable timestamp count toward volume but not averages
+ * (better no data than fake data).
  */
 
+export interface HistoricEnquiry {
+  id: string;
+  /** "2026-08-14" day key in the dashboard timezone */
+  date: string;
+  contactName: string;
+  phone: string;
+  source: string;
+  assignedTo: string | null;
+  status: EnquiryStatus;
+  receivedAt: string;
+  /** Seconds to first response, when GHL recorded a usable timestamp */
+  responseSeconds: number | null;
+  responded: boolean;
+}
+
+export interface EnquiryWindow {
+  ok: boolean;
+  error?: string;
+  timezone: string;
+  enquiries: HistoricEnquiry[];
+}
+
 export interface DayHistory {
-  /** "2026-08-14" in the dashboard timezone */
   date: string;
   /** "Fri 14 Aug" */
   label: string;
@@ -42,21 +62,51 @@ interface GhlPipeline {
   stages: Array<{ id: string; name: string }>;
 }
 
+interface GhlUser {
+  id: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface GhlOpportunity {
   id: string;
+  name?: string;
   pipelineId?: string;
   pipelineStageId?: string;
+  assignedTo?: string | null;
   status?: string;
   source?: string;
   createdAt?: string;
   dateAdded?: string;
   lastStatusChangeAt?: string;
   lastStageChangeAt?: string;
+  contact?: { name?: string; phone?: string };
 }
 
 const MAX_PAGES = 30; // 3000 opportunities — far above a normal window
 
-export async function fetchHistory(daysBack: number): Promise<HistoryResult> {
+function dayKeyFormatter(timezone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+/** "Fri 14 Aug" for a "2026-08-14" day key. */
+export function formatDayLabel(dateKey: string, timezone: string): string {
+  return new Intl.DateTimeFormat("en-NZ", {
+    timeZone: timezone,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${dateKey}T12:00:00`));
+}
+
+/** Fetch enquiry-level records for the last `daysBack` days. */
+export async function fetchEnquiryWindow(daysBack: number): Promise<EnquiryWindow> {
   const config = loadServerConfig();
   const { apiKey, locationId, baseUrl, apiVersion, pipelineId } = config.ghl;
   const timezone = config.timezone;
@@ -65,9 +115,9 @@ export async function fetchHistory(daysBack: number): Promise<HistoryResult> {
     return {
       ok: false,
       error:
-        "History needs the GoHighLevel connection — set GHL_API_KEY and GHL_LOCATION_ID (see README).",
+        "This view needs the GoHighLevel connection — set GHL_API_KEY and GHL_LOCATION_ID (see README).",
       timezone,
-      days: [],
+      enquiries: [],
     };
   }
 
@@ -94,11 +144,23 @@ export async function fetchHistory(daysBack: number): Promise<HistoryResult> {
       ? pipelines.find((p) => p.id === pipelineId)
       : pipelines[0];
     if (!pipeline) {
-      return { ok: false, error: "No GoHighLevel pipeline found.", timezone, days: [] };
+      return { ok: false, error: "No GoHighLevel pipeline found.", timezone, enquiries: [] };
     }
     const stageStatus = new Map<string, EnquiryStatus>(
       pipeline.stages.map((s) => [s.id, mapStageNameToStatus(s.name)])
     );
+
+    // User id → display name (tolerant: missing scope just means "Unknown").
+    const userNames = new Map<string, string>();
+    try {
+      const { users = [] } = await get<{ users: GhlUser[] }>("/users/", { locationId });
+      for (const u of users) {
+        const name = u.name ?? [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
+        if (name) userNames.set(u.id, name);
+      }
+    } catch {
+      // Leaderboard-style name resolution degrades gracefully.
+    }
 
     const opportunities: GhlOpportunity[] = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -115,98 +177,97 @@ export async function fetchHistory(daysBack: number): Promise<HistoryResult> {
       if (!data.opportunities || data.opportunities.length < 100) break;
     }
 
-    // Group by calendar day in the dashboard timezone.
-    const dayKey = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const dayLabel = new Intl.DateTimeFormat("en-NZ", {
-      timeZone: timezone,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    });
-
-    // The window's day keys, today first.
+    const dayKey = dayKeyFormatter(timezone);
     const dayMs = 24 * 60 * 60 * 1000;
+    const wanted = new Set<string>();
     const now = Date.now();
-    const wanted: Array<{ date: string; label: string }> = [];
     for (let i = 0; i < daysBack; i++) {
-      const d = new Date(now - i * dayMs);
-      wanted.push({ date: dayKey.format(d), label: dayLabel.format(d) });
+      wanted.add(dayKey.format(new Date(now - i * dayMs)));
     }
-    const wantedSet = new Set(wanted.map((w) => w.date));
 
-    interface Bucket {
-      total: number;
-      responded: number;
-      won: number;
-      lost: number;
-      responseTimes: number[];
-      sources: Map<string, number>;
-    }
-    const buckets = new Map<string, Bucket>();
-
+    const enquiries: HistoricEnquiry[] = [];
     for (const opp of opportunities) {
       if (opp.pipelineId && opp.pipelineId !== pipeline.id) continue;
       const created = opp.createdAt ?? opp.dateAdded;
       if (!created) continue;
-      const key = dayKey.format(new Date(created));
-      if (!wantedSet.has(key)) continue;
-
-      const empty: Bucket = { total: 0, responded: 0, won: 0, lost: 0, responseTimes: [], sources: new Map() };
-      const bucket = buckets.get(key) ?? empty;
-      bucket.total += 1;
+      const date = dayKey.format(new Date(created));
+      if (!wanted.has(date)) continue;
 
       let status: EnquiryStatus =
         (opp.pipelineStageId && stageStatus.get(opp.pipelineStageId)) || "new";
       if (opp.status === "won") status = "won";
       if (opp.status === "lost" || opp.status === "abandoned") status = "lost";
 
-      if (status !== "new") {
-        bucket.responded += 1;
-        const respondedAt = opp.lastStageChangeAt ?? opp.lastStatusChangeAt;
-        if (respondedAt) {
-          bucket.responseTimes.push(secondsBetween(created, respondedAt));
-        }
-      }
-      if (status === "won") bucket.won += 1;
-      if (status === "lost") bucket.lost += 1;
-
-      const source = opp.source || "Unknown";
-      bucket.sources.set(source, (bucket.sources.get(source) ?? 0) + 1);
-      buckets.set(key, bucket);
+      const respondedStamp = opp.lastStageChangeAt ?? opp.lastStatusChangeAt;
+      enquiries.push({
+        id: opp.id,
+        date,
+        contactName: opp.contact?.name ?? opp.name ?? "Unknown contact",
+        phone: opp.contact?.phone ?? "—",
+        source: opp.source || "Unknown",
+        assignedTo: opp.assignedTo ? userNames.get(opp.assignedTo) ?? "Unknown" : null,
+        status,
+        receivedAt: created,
+        responseSeconds:
+          status !== "new" && respondedStamp ? secondsBetween(created, respondedStamp) : null,
+        responded: status !== "new",
+      });
     }
 
-    const days: DayHistory[] = wanted.map(({ date, label }) => {
-      const b = buckets.get(date);
-      if (!b) {
-        return { date, label, total: 0, responded: 0, won: 0, lost: 0, avgResponseSeconds: null, topSource: null };
-      }
-      const top = [...b.sources.entries()].sort((x, y) => y[1] - x[1])[0];
-      return {
-        date,
-        label,
-        total: b.total,
-        responded: b.responded,
-        won: b.won,
-        lost: b.lost,
-        avgResponseSeconds: b.responseTimes.length
-          ? b.responseTimes.reduce((a, t) => a + t, 0) / b.responseTimes.length
-          : null,
-        topSource: top ? `${top[0]} ×${top[1]}` : null,
-      };
-    });
-
-    return { ok: true, timezone, days };
+    enquiries.sort(
+      (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+    );
+    return { ok: true, timezone, enquiries };
   } catch (err) {
     return {
       ok: false,
-      error: `Could not fetch history from GoHighLevel: ${err instanceof Error ? err.message : String(err)}`,
+      error: `Could not fetch from GoHighLevel: ${err instanceof Error ? err.message : String(err)}`,
       timezone,
-      days: [],
+      enquiries: [],
     };
   }
+}
+
+/** Day-by-day aggregates for the last `daysBack` days, today first. */
+export async function fetchHistory(daysBack: number): Promise<HistoryResult> {
+  const window = await fetchEnquiryWindow(daysBack);
+  if (!window.ok) {
+    return { ok: false, error: window.error, timezone: window.timezone, days: [] };
+  }
+
+  const byDate = new Map<string, HistoricEnquiry[]>();
+  for (const e of window.enquiries) {
+    const list = byDate.get(e.date) ?? [];
+    list.push(e);
+    byDate.set(e.date, list);
+  }
+
+  const dayKey = dayKeyFormatter(window.timezone);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const days: DayHistory[] = [];
+  for (let i = 0; i < daysBack; i++) {
+    const date = dayKey.format(new Date(now - i * dayMs));
+    const list = byDate.get(date) ?? [];
+    const times = list
+      .map((e) => e.responseSeconds)
+      .filter((t): t is number => t !== null);
+    const sources = new Map<string, number>();
+    for (const e of list) sources.set(e.source, (sources.get(e.source) ?? 0) + 1);
+    const top = [...sources.entries()].sort((x, y) => y[1] - x[1])[0];
+    days.push({
+      date,
+      label: formatDayLabel(date, window.timezone),
+      total: list.length,
+      responded: list.filter((e) => e.responded).length,
+      won: list.filter((e) => e.status === "won").length,
+      lost: list.filter((e) => e.status === "lost").length,
+      avgResponseSeconds: times.length
+        ? times.reduce((a, t) => a + t, 0) / times.length
+        : null,
+      topSource: top ? `${top[0]} ×${top[1]}` : null,
+    });
+  }
+
+  return { ok: true, timezone: window.timezone, days };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { getLocation } from "@/config/team";
 import { formatTimeShort } from "@/lib/time";
 import type { Enquiry } from "@/lib/types";
@@ -98,7 +99,14 @@ export function EnquiryTable({
                   )}
                   <td className="px-4 py-3 text-slate-600">{enquiry.source}</td>
                   <td className="px-4 py-3 text-slate-600">
-                    {enquiry.assignedTo ?? (
+                    {enquiry.assignedTo ? (
+                      <Link
+                        href={`/p/${encodeURIComponent(enquiry.assignedTo)}`}
+                        className="underline-offset-2 hover:text-sky-700 hover:underline"
+                      >
+                        {enquiry.assignedTo}
+                      </Link>
+                    ) : (
                       <span className="italic text-slate-400">Unassigned</span>
                     )}
                   </td>

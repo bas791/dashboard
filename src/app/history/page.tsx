@@ -88,8 +88,9 @@ export default async function HistoryPage({
             </section>
 
             <p className="mt-4 text-sm text-slate-400">
-              Response times come from GoHighLevel’s stage-change records; leads
-              without a usable record count toward volume but not the average.
+              Click a day to see its individual enquiries. Response times come
+              from GoHighLevel’s stage-change records; leads without a usable
+              record count toward volume but not the average.
             </p>
           </>
         )}
@@ -101,8 +102,19 @@ export default async function HistoryPage({
 function DayRow({ day, maxTotal }: { day: DayHistory; maxTotal: number }) {
   const quiet = day.total === 0;
   return (
-    <tr className={quiet ? "opacity-50" : ""}>
-      <td className="whitespace-nowrap px-6 py-3 font-semibold text-slate-800">{day.label}</td>
+    <tr className={quiet ? "opacity-50" : "transition hover:bg-sky-50"}>
+      <td className="whitespace-nowrap px-6 py-3 font-semibold text-slate-800">
+        {quiet ? (
+          day.label
+        ) : (
+          <Link
+            href={`/history/${day.date}`}
+            className="text-sky-700 underline-offset-2 hover:underline"
+          >
+            {day.label}
+          </Link>
+        )}
+      </td>
       <td className="w-48 px-4 py-3">
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
           <div
