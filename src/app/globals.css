@@ -61,3 +61,61 @@
   scrollbar-width: thin;
   scrollbar-color: rgb(63 63 70) transparent;
 }
+
+/*
+ * ─── Photo mark-up report (/markup) ──────────────────────────────────────────
+ * The report is written on screen and delivered as a PDF via the browser's
+ * print dialog, so print is a first-class layout here, not an afterthought.
+ */
+@media print {
+  /* The wallboard's dark chrome would burn a whole ink cartridge. */
+  html,
+  body {
+    background: #fff !important;
+    color: #18181b !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  /* Keep a photo and its notes together, and start each one on a fresh page. */
+  .markup-sheet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-before: page;
+    page-break-before: page;
+  }
+
+  .markup-sheet:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  /* Editable fields print as plain text — no boxes, no scrollbars. */
+  .markup-doc textarea,
+  .markup-doc input,
+  .markup-doc select {
+    border-color: transparent !important;
+    background: transparent !important;
+    resize: none !important;
+    overflow: visible !important;
+  }
+
+  /* A prompt like "Your name" is guidance on screen, not report content. */
+  .markup-doc ::placeholder {
+    color: transparent !important;
+  }
+
+  /* The date field is text on paper — drop its picker button. */
+  .markup-doc input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none !important;
+  }
+
+  /* Severity colours carry meaning, so keep them out of the greyscale pass. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -31,6 +31,9 @@ tracks daily stats and a salesperson leaderboard — all updating live.
   `/l/<location-id>`, and `/` is the NZ-wide view with a live map of all
   locations (dots go orange/red as SLAs slip; click a dot to jump to that
   office's board).
+- **Photo mark-up** — a separate tool at `/markup`: drop site photos in and
+  Claude circles the mould, lichen, moss and algae, writes the notes, and the
+  page prints straight to a client-ready PDF. See below.
 
 ## Adding your employees and locations
 
@@ -129,6 +132,48 @@ All settings live in environment variables — see [.env.example](.env.example).
 | `SLA_BREACH_MINUTES` | `10` | timer turns red + pulses |
 | `DASHBOARD_TIMEZONE` | `Pacific/Auckland` | defines "today" and clock display |
 | `GHL_POLL_INTERVAL_MS` | `15000` | GHL polling cadence |
+| `ANTHROPIC_API_KEY` | — | required for the `/markup` photo mark-up tool |
+
+## Photo mark-up (`/markup`)
+
+A quoting tool that lives alongside the wallboard. Open
+[http://localhost:3000/markup](http://localhost:3000/markup), drop site photos
+into the page, and each one is sent to Claude, which finds the biological
+growth on the building, outlines it, and writes the notes.
+
+**What it marks.** Mould, algae, moss, lichen and the organic staining growth
+leaves behind, on roofing, cladding, canopies, gutters, cappings and soffits.
+The prompt is written for exactly the surfaces that get quoted here — the pans
+of corrugated and trimdeck sheets, box gutters, sheet laps, parapet cappings
+and shaded south-facing elevations — and it is told explicitly to rule out the
+things that fool a photo: raking shadows across corrugations, rust, dirt, tyre
+marks and dark-coloured materials.
+
+**Working with the results.**
+
+- Findings are numbered on the photo and listed beside it, colour-coded
+  **light / moderate / heavy**.
+- Anything Claude is under 50% sure about is drawn with a **dashed** outline
+  and flagged *verify on site*, rather than quietly dropped.
+- Every heading, surface, growth type, severity and note is editable — Claude
+  drafts it, you have the last word before it goes to a client.
+- **Add region** lets you drag a box on the photo for anything it missed.
+- **Circles / Boxes** switches the outline style; **Copy notes** puts a plain
+  text version on the clipboard for a quote or email; **Print / Save PDF**
+  produces the report, one photo per page.
+- Photos stay in the browser. They are posted to the analysis endpoint and
+  never written to disk on the server.
+
+**Setup.** Put an [Anthropic API key](https://console.anthropic.com/) in
+`.env.local`:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Photos are downscaled to a 1568px long edge in the browser before upload, so
+a 12 MP phone photo costs about the same as a screenshot. Analysis runs two
+photos at a time.
 
 ## Architecture
 
@@ -137,7 +182,9 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── stream/route.ts      # SSE: pushes snapshots to every TV
-│   │   └── snapshot/route.ts    # one-shot JSON (polling fallback / debugging)
+│   │   ├── snapshot/route.ts    # one-shot JSON (polling fallback / debugging)
+│   │   └── markup/analyze/      # Claude vision: finds growth in a site photo
+│   ├── markup/page.tsx          # photo mark-up report tool
 │   ├── layout.tsx               # dark theme shell
 │   └── page.tsx
 ├── config/
@@ -152,7 +199,12 @@ src/
 │   ├── StatsPanel.tsx
 │   ├── ActivityFeed.tsx
 │   ├── Leaderboard.tsx
-│   └── StatusBadge.tsx
+│   ├── StatusBadge.tsx
+│   └── markup/                  # photo mark-up tool
+│       ├── MarkupWorkspace.tsx  # document state + analysis queue + export
+│       ├── PhotoSheet.tsx       # one photo + its findings (one printed page)
+│       ├── MarkupCanvas.tsx     # SVG outlines over the photo + manual drawing
+│       └── FindingList.tsx      # editable notes column
 ├── hooks/
 │   ├── useDashboardStream.ts    # SSE client + reconnect + new-enquiry diffing
 │   ├── useNow.ts                # shared 1-second tick
@@ -160,7 +212,9 @@ src/
 ├── lib/
 │   ├── types.ts                 # shared domain types
 │   ├── stats.ts                 # pure aggregation (stats, KPIs, leaderboard)
-│   └── time.ts                  # timer formatting + SLA maths
+│   ├── time.ts                  # timer formatting + SLA maths
+│   ├── markup.ts                # mark-up types, severity palette, box maths
+│   └── image.ts                 # browser-side photo downscaling (EXIF-aware)
 └── server/
     ├── config.ts                # env parsing, fail-soft fallbacks
     ├── store.ts                 # singleton store, fans out to SSE clients
