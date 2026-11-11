@@ -32,6 +32,42 @@ tracks daily stats and a salesperson leaderboard — all updating live.
   locations (dots go orange/red as SLAs slip; click a dot to jump to that
   office's board).
 
+## Safety section (`/safety`)
+
+A phone-first health and safety area that lives alongside the wallboard. Crews
+open `/safety` on their phone and use "Add to Home Screen" to install it.
+
+- **Equipment register** — every rope, harness, machine, ladder and vehicle
+  gets a code (`EQ-0001`), a printable QR label, and a full history.
+- **Photo the label** — Claude reads the serial number, make, model and
+  manufacture date off the photo; the person confirms before saving.
+- **Pre-start and pre-use checks** — a checklist per equipment type, with
+  photos required on chosen checks. Claude looks at each photo and flags
+  visible damage or an unusable photo. It can raise a concern but never passes
+  equipment: a person always signs.
+- **Detailed inspections** — on a schedule per type (e.g. every 182 days for
+  height gear), recorded by a competent inspector or manager.
+- **Faults and quarantine** — a failed check raises a fault; a failed
+  *critical* check takes the item out of service until an inspector or manager
+  signs the fault off and returns it.
+- **Who has it** — issue an item to a person or put it on a truck. Items that
+  are out of service or overdue for inspection can't be issued.
+- **Admin** — people and roles, editable checklists, QR label printing.
+
+Setup: set `DATABASE_URL` (any Postgres, e.g. Supabase) and `ANTHROPIC_API_KEY`
+— see [.env.example](.env.example). Tables and starter checklists are created
+automatically on first run. The starter checklists in
+[`src/server/safety/seed.ts`](src/server/safety/seed.ts) are drafts: review
+them against manufacturer instructions before relying on them.
+
+Known limits of this first version:
+
+- **No real login yet.** People pick their name from a list, so records show
+  who did what but aren't proof of identity.
+- **Needs a signal.** Checks can't be completed offline yet.
+- **Photos are stored in the database.** Fine to start with; move to file
+  storage as volume grows.
+
 ## Adding your employees and locations
 
 Everything lives in one file: [`src/config/team.ts`](src/config/team.ts).

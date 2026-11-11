@@ -1,0 +1,11 @@
+{
+  "name": "Safety",
+  "short_name": "Safety",
+  "description": "Equipment register, inspections and vehicle pre-start checks",
+  "start_url": "/safety",
+  "scope": "/safety",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "icons": [{ "src": "/safety-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
